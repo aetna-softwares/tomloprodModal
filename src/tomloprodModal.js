@@ -25,17 +25,34 @@
  */
  
 var TomloprodModal = (function () {
-    "use strict";
-    var closeButton = null,
-            closeOnEsc = true,
-            draggable = true,
-            closeOnOverlay = true,
-			removeOverlay = false,
-            handlers = {},
-			mainContainer = [],
-            showMessages = false,
-			closeTimeout = null,
-			uniqueName = null;
+	"use strict";
+
+	var defaults = {};
+	defaults.closeButton = null;
+	defaults.closeOnEsc = true;
+	defaults.draggable = true;
+	defaults.closeOnOverlay = true;
+	defaults.removeOverlay = false;
+	defaults.handlers = {};
+	defaults.mainContainer = [];
+	defaults.showMessages = false;
+	defaults.closeTimeout = null;
+
+	var draggingModal = null;
+	var draggingPosition = null;
+	var modalStack = [];
+	
+	function TomloprodModal(){
+		this.closeButton = defaults.closeButton;
+        this.closeOnEsc = defaults.closeOnEsc;
+        this.draggable = defaults.draggable;
+        this.closeOnOverlay = defaults.closeOnOverlay;
+		this.removeOverlay = defaults.removeOverlay;
+        this.handlers = defaults.handlers;
+		this.mainContainer = defaults.mainContainer;
+		this.closeTimeout = defaults.closeTimeout;
+	};
+
     /**
      * Adds the value to the specified property to a set of elements.
      * @param {Objects[]} els
@@ -128,18 +145,19 @@ var TomloprodModal = (function () {
         modal.style.left = coordX + 'px';
         modal.style.top = coordY + 'px';
 
-        if (showMessages) {
+        if (defaults.showMessages) {
             console.info("TomloprodModal: Dragging. Coord X: " + coordX + 'px | Coord Y: ' + coordY + 'px');
         }
     }
 	
-    function getKey(event) {
+	TomloprodModal.prototype.getKey = function(event) {
         event = event || window.event;
         //////////// Esc
         if (event.keyCode === 27) {
-            TomloprodModal.closeModal();
+            this.closeModal();
         }
-    }
+	};
+	
 	function openOnClick(e){
 	    if (e.target === document.body){ 
 			return;
@@ -147,35 +165,35 @@ var TomloprodModal = (function () {
 	    var elem = findParentWithDataModal(e.target);	
 		if (elem instanceof Element && hasClass(elem, 'tm-trigger')) {
 			if(typeof elem !== "undefined"){
-				TomloprodModal.openModal(elem.getAttribute('data-tm-modal'));
+				openModal("#"+elem.getAttribute('data-tm-modal'));
 				e.preventDefault();
 			}
 		}
 	}
 	
 	//////////// Apply individual configuration (with data attributes or param inside openModal) when the openModal method is called.
-	function applyIndividualConfig(params){
+	TomloprodModal.prototype.applyIndividualConfig = function(params){
 		var attr = null;
-		for (var i = 0; i < TomloprodModal.modal.attributes.length; i++) {
-			attr = TomloprodModal.modal.attributes[i];
+		for (var i = 0; i < this.modal.attributes.length; i++) {
+			attr = this.modal.attributes[i];
 			// If attribute nodeName starts with 'data-'
 			if (/^data-/.test(attr.nodeName)) {
 				switch(attr.nodeName){
 					case "data-tm-content": 
-						TomloprodModal.modal.getElementsByClassName('tm-content')[0].innerHTML = attr.nodeValue; 
+					this.modal.getElementsByClassName('tm-content')[0].innerHTML = attr.nodeValue; 
 					break;
 					case "data-tm-title": 
-						TomloprodModal.modal.getElementsByClassName('tm-title-text')[0].innerHTML = attr.nodeValue; 
+					this.modal.getElementsByClassName('tm-title-text')[0].innerHTML = attr.nodeValue; 
 					break;
 					case "data-tm-bgcolor":
-						addPropertyValueFromClasses(TomloprodModal.modal.getElementsByClassName("tm-wrapper"), "backgroundColor", attr.nodeValue);
+						addPropertyValueFromClasses(this.modal.getElementsByClassName("tm-wrapper"), "backgroundColor", attr.nodeValue);
 					break;
 					case "data-tm-textcolor":
-						addPropertyValueFromClasses(TomloprodModal.modal.getElementsByClassName("tm-content"), "color", attr.nodeValue);
-						addPropertyValueFromClasses(TomloprodModal.modal.getElementsByClassName("tm-wrapper"), "color", attr.nodeValue);
+						addPropertyValueFromClasses(this.modal.getElementsByClassName("tm-content"), "color", attr.nodeValue);
+						addPropertyValueFromClasses(this.modal.getElementsByClassName("tm-wrapper"), "color", attr.nodeValue);
 					break;		
 					case "data-tm-closetimer":
-						closeTimeout = setTimeout(TomloprodModal.closeModal, attr.nodeValue);
+						this.closeTimeout = setTimeout(this.closeModal.bind(this), attr.nodeValue);
 					break;					
 					
 				}
@@ -188,7 +206,7 @@ var TomloprodModal = (function () {
 					if (typeof params[configOption] !== "undefined") {
 						switch (configOption) {
 							case "title":
-								TomloprodModal.modal.getElementsByClassName('tm-title-text')[0].innerHTML = params[configOption]; 
+							this.modal.getElementsByClassName('tm-title-text')[0].innerHTML = params[configOption]; 
 							break;
 							case "borderRadius":
 								addPropertyValueFromClasses(document.getElementsByClassName("tm-wrapper"), "-webkit-border-radius", params[configOption]);
@@ -196,17 +214,17 @@ var TomloprodModal = (function () {
 								addPropertyValueFromClasses(document.getElementsByClassName("tm-wrapper"), "border-radius", params[configOption]);
 							break;
 							case "content":
-								TomloprodModal.modal.getElementsByClassName('tm-content')[0].innerHTML = params[configOption]; 
+								this.modal.getElementsByClassName('tm-content')[0].innerHTML = params[configOption]; 
 							break;
 							case "bgColor":
-								addPropertyValueFromClasses(TomloprodModal.modal.getElementsByClassName("tm-wrapper"), "backgroundColor", params[configOption]);
+								addPropertyValueFromClasses(this.modal.getElementsByClassName("tm-wrapper"), "backgroundColor", params[configOption]);
 							break;
 							case "textColor":
-								addPropertyValueFromClasses(TomloprodModal.modal.getElementsByClassName("tm-content"), "color", params[configOption]);
-								addPropertyValueFromClasses(TomloprodModal.modal.getElementsByClassName("tm-wrapper"), "color", params[configOption]);
+								addPropertyValueFromClasses(this.modal.getElementsByClassName("tm-content"), "color", params[configOption]);
+								addPropertyValueFromClasses(this.modal.getElementsByClassName("tm-wrapper"), "color", params[configOption]);
 							break;
 							case "closeTimer":
-								closeTimeout = setTimeout(TomloprodModal.closeModal, params[configOption]);
+								this.closeTimeout = setTimeout(this.closeModal.bind(this), params[configOption]);
 							break;								
 						}
 					}
@@ -214,302 +232,276 @@ var TomloprodModal = (function () {
 			}
 		
 		}
+	};
+
+
+	TomloprodModal.prototype.registerHandler = function (event, callback) {
+		var added = true;
+		if (this.handlers[event]) {
+			if (indexOf(this.handlers[event], callback) === -1) {
+				this.handlers[event].push(callback);
+			} else {
+				added = false;
+				console.error("TomloprodModal: The event ''" + event + "'' already contain one handler with the next function:\n\n " + callback);
+			}
+		} else {
+			this.handlers[event] = [callback];
+		}
+		if (defaults.showMessages && added) {
+			console.info("TomloprodModal: There are one new handler registered to the event ''" + event + "'':\n\n " + callback + ". \n\nTotal handlers of ''" + event + "'' event: " + this.handlers[event].length);
+		}
+	};
+
+	TomloprodModal.prototype.removeHandler = function (event, callback) {
+		if (this.handlers[event]) {
+			callback = callback || false;
+
+			if (callback) {
+				var i = indexOf(this.handlers[event], callback);
+				if (i > -1) {
+					this.handlers[event].splice(i, 1);
+				} else {
+					return false;
+				}
+				if (defaults.showMessages) {
+					console.info("TomloprodModal: The handlers with the name ''" + event + "'' have been deleted successfully. (" + callback + ")");
+				}
+				return true;
+			}
+			delete this.handlers[event];
+			if (defaults.showMessages) {
+				console.info("TomloprodModal: The handler ''" + event + "'' has been deleted successfully. (" + callback + ")");
+			}
+		} else {
+			return false;
+		}
+	} ;
+
+	TomloprodModal.prototype.fire = function (event) {
+		if (!this.handlers[event]) {
+			if (defaults.showMessages) {
+				console.info("TomloprodModal: There aren't any handlers registered for ''" + event + "''");
+			}
+			return false;
+		}
+		var i;
+		for (i = 0; i < this.handlers[event].length; i += 1) {
+			this.handlers[event][i].apply(window, Array.prototype.slice.call(arguments, 1));
+		}
+	} ;
+
+	TomloprodModal.prototype.closeModal = function (event) {
+		if (typeof event !== "undefined") {
+			event.stopPropagation();
+		}
+		
+		window.clearTimeout(this.closeTimeout);
+		removeClass(this.mainContainer, 'tm-effect');
+		removeClass(this.modal, 'tm-showModal');
+		this.closeButton.removeEventListener('click', this.closeModal, false);
+		if(this.isOpen){
+			var inputsText = this.modal.querySelectorAll('.tm-emptyOnClose'), conta = 0;
+			for (conta = 0; conta < inputsText.length; conta += 1) {
+				if (inputsText[conta].tagName === "INPUT") {
+					inputsText[conta].value = "";
+				} else {
+					inputsText[conta].innerHTML = "";
+				}
+			}
+		}
+		this.stopDragging(this.modal);
+		this.modal = null;
+		this.isOpen = false;
+		this.fire("closed");
+		var indexInStack = modalStack.indexOf(this) ;
+		if(indexInStack !== -1){
+			modalStack.splice(indexInStack, 1) ;
+		}
+	},
+	/** DRAG METHODS **/
+	/**
+	 * Starts the dragging of modal window.
+	 * @param {Object} modal
+	 * @param {Event} event
+	 */
+	TomloprodModal.prototype.startDragging = function (event) {
+		if(!this.modal){ return; }
+		event = event || window.event;
+		this.modal.style.cursor = 'move';
+		draggingModal = this.modal ;
+		draggingPosition = {} ;
+		draggingPosition.modalTop = this.modal.offsetTop;
+		draggingPosition.modalLeft = this.modal.offsetLeft;
+		draggingPosition.halfWidthModal = this.modal.offsetWidth / 2;
+		draggingPosition.halfHeightModal = this.modal.offsetHeight / 2;
+		draggingPosition.widthWindow = parseInt(window.innerWidth, 10);
+		draggingPosition.heightWindow = parseInt(window.innerHeight, 10);
+		draggingPosition.differenceX = event.clientX - draggingPosition.modalLeft;
+		draggingPosition.differenceY = event.clientY - draggingPosition.modalTop;
+		
+	};
+
+	
+
+	/**
+	 * Method called when stopped the dragging of the modal window.
+	 * @param {Object} modal
+	 */
+	TomloprodModal.prototype.stopDragging = function () {
+		draggingModal = null;
+		if(typeof this.modal.style !== "undefined"){
+			this.modal.style.cursor = 'default';
+			removeClass(document.getElementsByTagName("body")[0], 'tm-avoidSelection');
+			removeClass(this.modal, 'tm-avoidSelection');
+			this.fire('stopDragging');
+		}
+	} ;
+
+	function onMove(event) {
+		if(!draggingModal){ return ;}
+		event = event || window.event;
+		
+		// Drag end position
+		var modalX = event.clientX - draggingPosition.differenceX,
+				modalY = event.clientY - draggingPosition.differenceY;
+
+		// X Control
+		if (modalX < draggingPosition.halfWidthModal) {
+			modalX = draggingPosition.halfWidthModal;
+		}
+		if (modalX + draggingPosition.halfWidthModal > draggingPosition.widthWindow) {
+			modalX = draggingPosition.widthWindow - draggingPosition.halfWidthModal;
+		}
+		// Y Control
+		if (modalY < draggingPosition.halfHeightModal) {
+			modalY = draggingPosition.halfHeightModal;
+		}
+		if (modalY + draggingPosition.halfHeightModal > draggingPosition.heightWindow) {
+			modalY = draggingPosition.heightWindow - draggingPosition.halfHeightModal;
+		}
+		addClass(document.getElementsByTagName("body")[0], 'tm-avoidSelection');
+		addClass(draggingModal, 'tm-avoidSelection');
+		move(draggingModal, modalX, modalY);
+	};
+
+	document.addEventListener("click", openOnClick);
+	document.addEventListener("mousemove", onMove);
+
+	function openModal(modalQueryOrElement, params) {
+		if(!document.querySelector(".tm-overlay")){
+			//////////// Create modal overlay
+			var overlay = document.createElement("DIV");
+			overlay.className = "tm-overlay";
+			document.body.appendChild(overlay);
+
+			overlay.addEventListener("click", function(){
+				if(modalStack.length>0 && modalStack[modalStack.length-1].closeOnOverlay && !modalStack[modalStack.length-1].removeOverlay){
+					modalStack[modalStack.length-1].closeModal() ;
+				}
+			}, false) ;
+			
+		}
+
+		var tomModal = new TomloprodModal() ;
+		modalStack.push(tomModal) ;
+	
+		tomModal.modal = modalQueryOrElement;
+		if(typeof(modalQueryOrElement) === "string"){
+			tomModal.modal = document.querySelector(modalQueryOrElement);
+		}
+		if (tomModal.modal) {
+
+			tomModal.modal.style.zIndex = 2000 + modalStack.length ;
+
+			if(defaults.mainContainer){
+				addClass(defaults.mainContainer, "tm-effect");
+			}
+			
+			//////////// Individual configuration (data attributes) and params
+			if(!params){
+				params = defaults ;
+			}
+			tomModal.applyIndividualConfig(params);
+			
+			if (params.draggable || hasClass(tomModal.modal, "tm-draggable")) {
+				tomModal.modal.querySelector(".tm-title").onmousedown = tomModal.startDragging.bind(tomModal) ;
+				tomModal.modal.querySelector(".tm-title").onmouseup = tomModal.stopDragging.bind(tomModal) ;
+			}
+			addClass(tomModal.modal, 'tm-showModal');
+			tomModal.closeButton = tomModal.modal.querySelector('.tm-closeButton');
+			
+			tomModal.closeButton.onclick = tomModal.closeModal.bind(tomModal);
+			
+			
+			if (tomModal.closeOnEsc) {
+				document.onkeyup = tomModal.getKey.bind(tomModal);
+			}
+			tomModal.isOpen = true;
+			tomModal.fire('opened');
+		} else if (defaults.showMessages) {
+			console.error("TomloprodModal: Cannot find the indicated modal window.");
+		}
+	} 
+	
+	
+	function create(params){
+	
+		//////////// Create default modal window
+		var defaultModalWindow = document.createElement("DIV");
+		defaultModalWindow.className = "tm-modal tm-effect tm-draggable";
+			//////////// Create wrapper 
+			var defaultModalWrapper = document.createElement("DIV");
+			defaultModalWrapper.className = "tm-wrapper";
+			defaultModalWindow.appendChild(defaultModalWrapper);
+				//////////// Title
+				var defaultModalTitle = document.createElement("DIV");
+				defaultModalTitle.className = "tm-title";
+				defaultModalWrapper.appendChild(defaultModalTitle);
+					//////////// Xbutton
+					var defaultModalTitleXButton = document.createElement("SPAN");
+					defaultModalTitleXButton.className = "tm-XButton tm-closeButton";
+					defaultModalTitle.appendChild(defaultModalTitleXButton);
+					//////////// Title h3
+					var defaultModalTitleH3 = document.createElement("H3");
+					defaultModalTitleH3.className = "tm-title-text";
+					defaultModalTitle.appendChild(defaultModalTitleH3);
+				//////////// Content
+				var defaultModalContent = document.createElement("DIV");
+				defaultModalContent.className = "tm-content";
+				defaultModalWrapper.appendChild(defaultModalContent);
+				
+				document.body.insertBefore(defaultModalWindow, document.body.firstChild);
+	
+		openModal(defaultModalWindow, params);
+	
+	}
+	
+	function setDefaults(params) {
+				
+	
+		if (typeof params !== "undefined") {
+			Object.keys(params).forEach(function(configOption){
+				defaults[configOption] = params[configOption] ;
+			}) ;
+		}
+			
+		
 	}
 	
     return {
-        modal: [],
-        isOpen: false,
-
-        openModal: function (modalID, params) {
-		
-            if (TomloprodModal.isOpen) {
-                TomloprodModal.closeModal();
-            }else{
-				
-				TomloprodModal.modal = document.getElementById(modalID);
-				if (TomloprodModal.modal) {
-
-					if(mainContainer){
-						addClass(mainContainer, "tm-effect");
-					}
-					
-					//////////// Individual configuration (data attributes) and params
-					applyIndividualConfig(params);
-					
-					if (draggable && hasClass(TomloprodModal.modal, "tm-draggable")) {
-						TomloprodModal.modal.setAttribute('onmousedown', 'TomloprodModal.startDragging(this,event);');
-						TomloprodModal.modal.setAttribute('onmouseup', 'TomloprodModal.stopDragging(this);');
-					}
-					addClass(TomloprodModal.modal, 'tm-showModal');
-					closeButton = TomloprodModal.modal.querySelector('.tm-closeButton');
-					
-					if (closeButton.addEventListener) {                
-						closeButton.addEventListener("click", TomloprodModal.closeModal, false);
-					} else if (closeButton.attachEvent) {         
-						closeButton.attachEvent("onclick", TomloprodModal.closeModal);
-					}
-					
-					if (closeOnOverlay && !removeOverlay) {
-						if (document.querySelector(".tm-overlay").addEventListener) {                
-							document.querySelector(".tm-overlay").addEventListener("click", TomloprodModal.closeModal, false);
-						} else if (document.querySelector(".tm-overlay").attachEvent) {         
-							document.querySelector(".tm-overlay").attachEvent("onclick", TomloprodModal.closeModal);
-						}
-					}
-					if (closeOnEsc) {
-						document.onkeyup = getKey;
-					}
-					TomloprodModal.isOpen = true;
-					TomloprodModal.fire('opened');
-				} else if (showMessages) {
-					console.error("TomloprodModal: Cannot find the indicated modal window.");
-				}
-			}
-        },
-        registerHandler: function (event, callback) {
-            var added = true;
-            if (handlers[event]) {
-                if (indexOf(handlers[event], callback) === -1) {
-                    handlers[event].push(callback);
-                } else {
-                    added = false;
-                    console.error("TomloprodModal: The event ''" + event + "'' already contain one handler with the next function:\n\n " + callback);
-                }
-            } else {
-                handlers[event] = [callback];
-            }
-            if (showMessages && added) {
-                console.info("TomloprodModal: There are one new handler registered to the event ''" + event + "'':\n\n " + callback + ". \n\nTotal handlers of ''" + event + "'' event: " + handlers[event].length);
-            }
-        },
-        removeHandler: function (event, callback) {
-            if (handlers[event]) {
-                callback = callback || false;
-
-                if (callback) {
-                    var i = indexOf(handlers[event], callback);
-                    if (i > -1) {
-                        handlers[event].splice(i, 1);
-                    } else {
-                        return false;
-                    }
-                    if (showMessages) {
-                        console.info("TomloprodModal: The handlers with the name ''" + event + "'' have been deleted successfully. (" + callback + ")");
-                    }
-                    return true;
-                }
-                delete handlers[event];
-                if (showMessages) {
-                    console.info("TomloprodModal: The handler ''" + event + "'' has been deleted successfully. (" + callback + ")");
-                }
-            } else {
-                return false;
-            }
-        },
-        fire: function (event) {
-            if (!handlers[event]) {
-                if (showMessages) {
-                    console.info("TomloprodModal: There aren't any handlers registered for ''" + event + "''");
-                }
-                return false;
-            }
-            var i;
-            for (i = 0; i < handlers[event].length; i += 1) {
-                handlers[event][i].apply(window, Array.prototype.slice.call(arguments, 1));
-            }
-        },
-		
-		create: function(params){
-		
-			if(uniqueName === null){			
-				uniqueName = "tm-create" + Math.floor(Date.now() / 1000) ;
-				//////////// Create default modal window
-				var defaultModalWindow = document.createElement("DIV");
-				defaultModalWindow.id = uniqueName;
-				defaultModalWindow.className = "tm-modal tm-effect tm-draggable";
-					//////////// Create wrapper 
-					var defaultModalWrapper = document.createElement("DIV");
-					defaultModalWrapper.className = "tm-wrapper";
-					defaultModalWindow.appendChild(defaultModalWrapper);
-						//////////// Title
-						var defaultModalTitle = document.createElement("DIV");
-						defaultModalTitle.className = "tm-title";
-						defaultModalWrapper.appendChild(defaultModalTitle);
-							//////////// Xbutton
-							var defaultModalTitleXButton = document.createElement("SPAN");
-							defaultModalTitleXButton.className = "tm-XButton tm-closeButton";
-							defaultModalTitle.appendChild(defaultModalTitleXButton);
-							//////////// Title h3
-							var defaultModalTitleH3 = document.createElement("H3");
-							defaultModalTitleH3.className = "tm-title-text";
-							defaultModalTitle.appendChild(defaultModalTitleH3);
-						//////////// Content
-						var defaultModalContent = document.createElement("DIV");
-						defaultModalContent.className = "tm-content";
-						defaultModalWrapper.appendChild(defaultModalContent);
-						
-						document.body.insertBefore(defaultModalWindow, document.body.firstChild);
-			}
-		
-			TomloprodModal.openModal(uniqueName, params);
-		
-		},
-		
-        start: function (params) {
-					
-			//////////// Create modal overlay
-			var overlay = document.createElement("DIV");
-            overlay.className = "tm-overlay";
-            document.body.appendChild(overlay);
-		
-			//////////// Apply parameters
-            var configOption = null;
-			if (typeof params !== "undefined") {
-				for (configOption in params) {
-					if (typeof params[configOption] !== "undefined") {
-						switch (configOption) {
-							case "draggable":
-								draggable = params[configOption];
-								break;
-							case "bgColor":
-								addPropertyValueFromClasses(document.getElementsByClassName("tm-wrapper"), "backgroundColor", params[configOption]);
-								break;
-							case "borderRadius":
-								addPropertyValueFromClasses(document.getElementsByClassName("tm-wrapper"), "-webkit-border-radius", params[configOption]);
-								addPropertyValueFromClasses(document.getElementsByClassName("tm-wrapper"), "-moz-border-radius", params[configOption]);
-								addPropertyValueFromClasses(document.getElementsByClassName("tm-wrapper"), "border-radius", params[configOption]);
-								break;
-							case "textColor":
-								addPropertyValueFromClasses(document.getElementsByClassName("tm-content"), "color", params[configOption]);
-								addPropertyValueFromClasses(document.getElementsByClassName("tm-wrapper"), "color", params[configOption]);
-								break;
-							case "closeOnOverlay":
-								closeOnOverlay = params[configOption];
-								break;
-							case "overlayColor":
-								document.querySelector(".tm-overlay").style.backgroundColor = params[configOption];
-								break;
-							case "removeOverlay":
-								if (params[configOption]) {
-									removeOverlay = params[configOption];
-									overlay = document.querySelector(".tm-overlay");
-									if(overlay){
-										overlay.parentNode.removeChild(document.querySelector(".tm-overlay"));
-									}
-								}
-								break;
-							case "showMessages":
-								showMessages = params[configOption];
-								break;
-							case "closeOnEsc":
-								closeOnEsc = params[configOption];
-								break;
-							case "idMainContainer":
-								mainContainer = document.getElementById(params[configOption]);
-								addClass(mainContainer, "tm-MainContainer");
-								break;
-							
-						}
-					}
-				}
-			}
+        openModal: openModal,
+        create: create,
+        setDefaults: setDefaults
 			
-		    //////////// For all major browsers, except IE 8 and earlier
-		    if (document.addEventListener) {                
-				document.addEventListener("click", openOnClick);
-				//////////// For IE 8 and earlier versions
-		    } else if (document.attachEvent) {         
-				document.attachEvent("onclick", openOnClick);
-		    }
-        },
-		
-        stop: function () {
-            document.onclick = null;
-            var aHrefs = document.getElementsByTagName("A");
-            for (var x = 0; x < aHrefs.length; x++) {
-                var el = aHrefs[x];
-                el.onclick = null;
-            }
-        },
-        closeModal: function (event) {
-            if (typeof event !== "undefined") {
-                event.stopPropagation();
-            }
+			// stop: function () {
+			//     document.onclick = null;
+			//     var aHrefs = document.getElementsByTagName("A");
+			//     for (var x = 0; x < aHrefs.length; x++) {
+			//         var el = aHrefs[x];
+			//         el.onclick = null;
+			//     }
+			// },
 			
-			window.clearTimeout(closeTimeout);
-			removeClass(mainContainer, 'tm-effect');
-            removeClass(TomloprodModal.modal, 'tm-showModal');
-            closeButton.removeEventListener('click', TomloprodModal.closeModal, false);
-			if(TomloprodModal.isOpen){
-				var inputsText = TomloprodModal.modal.querySelectorAll('.tm-emptyOnClose'), conta = 0;
-				for (conta = 0; conta < inputsText.length; conta += 1) {
-					if (inputsText[conta].tagName === "INPUT") {
-						inputsText[conta].value = "";
-					} else {
-						inputsText[conta].innerHTML = "";
-					}
-				}
-			}
-			TomloprodModal.stopDragging(TomloprodModal.modal);
-			TomloprodModal.modal = [];
-            TomloprodModal.isOpen = false;
-            TomloprodModal.fire("closed");
-        },
-        /** DRAG METHODS **/
-        /**
-         * Starts the dragging of modal window.
-         * @param {Object} modal
-         * @param {Event} event
-         */
-        startDragging: function (modal, event) {
-            event = event || window.event;
-            modal.style.cursor = 'move';
-            var modalTop = modal.offsetTop,
-                    modalLeft = modal.offsetLeft,
-                    halfWidthModal = TomloprodModal.modal.offsetWidth / 2,
-                    halfHeightModal = TomloprodModal.modal.offsetHeight / 2,
-                    widthWindow = parseInt(window.innerWidth, 10),
-                    heightWindow = parseInt(window.innerHeight, 10),
-                    differenceX = event.clientX - modalLeft,
-                    differenceY = event.clientY - modalTop;
-            document.onmousemove = function (event) {
-                event = event || window.event;
-                // Drag end position
-                var modalX = event.clientX - differenceX,
-                        modalY = event.clientY - differenceY;
-
-                // X Control
-                if (modalX < halfWidthModal) {
-                    modalX = halfWidthModal;
-                }
-                if (modalX + halfWidthModal > widthWindow) {
-                    modalX = widthWindow - halfWidthModal;
-                }
-                // Y Control
-                if (modalY < halfHeightModal) {
-                    modalY = halfHeightModal;
-                }
-                if (modalY + halfHeightModal > heightWindow) {
-                    modalY = heightWindow - halfHeightModal;
-                }
-                addClass(document.getElementsByTagName("body")[0], 'tm-avoidSelection');
-                addClass(TomloprodModal.modal, 'tm-avoidSelection');
-                move(modal, modalX, modalY);
-            };
-        },
-        /**
-         * Method called when stopped the dragging of the modal window.
-         * @param {Object} modal
-         */
-        stopDragging: function (modal) {
-			if(typeof modal.style !== "undefined"){
-				modal.style.cursor = 'default';
-				removeClass(document.getElementsByTagName("body")[0], 'tm-avoidSelection');
-				removeClass(TomloprodModal.modal, 'tm-avoidSelection');
-				TomloprodModal.fire('stopDragging');
-				document.onmousemove = function () { };
-			}
-        }
-    };
+	};
 }());
 

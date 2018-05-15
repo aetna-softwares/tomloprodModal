@@ -88,7 +88,6 @@
 			<!-- //////////// Example 0 default modal window -->
 			<div 
 				data-tm-title="tomloprodModal 0" 
-				data-tm-content="My background color is the default :-)" 
 				class="tm-modal tm-effect tm-draggable" 
 				id="testModal0">
 					<div class="tm-wrapper">
@@ -97,6 +96,9 @@
 							<h3 class="tm-title-text"></h3> 
 						</div>
 						<div class="tm-content">
+							<div style="width: 1500px; height: 2000px">
+								<button id="submodal">Open submodal !</button>
+							</div>
 						</div>
 					</div>
 			</div>
@@ -159,13 +161,20 @@
 
 		<script>
 		
-		TomloprodModal.start({
+		TomloprodModal.setDefaults({
 			closeOnOverlay: true,
 			/*removeOverlay:true,
 			showMessages: true,
 			bgColor: "#FFFFFF",
 			textColor: "#333333",*/
 			idMainContainer: "myMainContainer"
+		});
+
+		document.getElementById("submodal").addEventListener("click", function(){
+			TomloprodModal.create({
+				title: "this is a submodal",
+				content: "This is some content"
+			});
 		});
 		
 		</script>
